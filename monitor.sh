@@ -2,7 +2,7 @@
 
 # Enhanced 5G Modem Monitor Script
 # Monitors cell lock status and network connectivity, reconnects when needed
-# Usage: ./5g_monitor.sh
+# Usage: ./monitor.sh
 
 # Configuration
 SERIAL_DEVICE="/dev/ttyUSB3"
@@ -14,11 +14,11 @@ CONNECTIVITY_FAILURES_THRESHOLD=3
 MAX_RECONNECT_ATTEMPTS=3
 DEBUG=0
 
-# Network Mode Configuration
+# Network Mode Configuration older modems
 # 1 = GSM only, 3 = LTE only, 9 = LTE + GSM, 11 = 5G + LTE + GSM, 12 = 5G only
 #NETWORK_MODE="12"  # Force 5G SA only - change to 11 for 5G + LTE fallback
 
-# Network Mode Pref for Quectel
+# Network Mode Pref for Quectel X75
 # AUTO = autonmatic, LTE = LTE Only, NR5G = 5G Only, 
 # LTE:NR5G = LTE and 5G, GSM = 2G only, WCDMA = 3G only
 # GSM:WCDMA:LTE:NR5G = all modes
