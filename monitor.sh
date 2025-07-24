@@ -2,7 +2,7 @@
 
 # Enhanced 5G Modem Monitor Script
 # Monitors cell lock status and network connectivity, reconnects when needed
-# Usage: ./monitor.sh
+# Usage: ./5g_monitor.sh
 
 # Configuration
 SERIAL_DEVICE="/dev/ttyUSB3"
@@ -14,11 +14,11 @@ CONNECTIVITY_FAILURES_THRESHOLD=3
 MAX_RECONNECT_ATTEMPTS=3
 DEBUG=0
 
-# Network Mode Configuration older modems
+# Network Mode Configuration
 # 1 = GSM only, 3 = LTE only, 9 = LTE + GSM, 11 = 5G + LTE + GSM, 12 = 5G only
 #NETWORK_MODE="12"  # Force 5G SA only - change to 11 for 5G + LTE fallback
 
-# Network Mode Pref for Quectel X75
+# Network Mode Pref for Quectel
 # AUTO = autonmatic, LTE = LTE Only, NR5G = 5G Only, 
 # LTE:NR5G = LTE and 5G, GSM = 2G only, WCDMA = 3G only
 # GSM:WCDMA:LTE:NR5G = all modes
@@ -51,6 +51,30 @@ log_message() {
 }
 
 
+# Rotate the log file
+rotate_log() {
+    local max_size=1048576  # 1MB in bytes
+    local max_files=5
+    
+    if [ -f "$LOG_FILE" ] && [ $(stat -c%s "$LOG_FILE" 2>/dev/null || echo 0) -gt $max_size ]; then
+        # Rotate existing logs
+        for i in $(seq $((max_files-1)) -1 1); do
+            if [ -f "${LOG_FILE}.$i" ]; then
+                mv "${LOG_FILE}.$i" "${LOG_FILE}.$((i+1))"
+            fi
+        done
+        
+        # Move current log to .1
+        mv "$LOG_FILE" "${LOG_FILE}.1"
+        
+        # Create new log file
+        touch "$LOG_FILE"
+        echo "$(date): Log rotated" >> "$LOG_FILE"
+    fi
+}
+
+
+
 # Function to send AT command and get response
 send_at_command() {
     local command="$1"
@@ -78,8 +102,8 @@ get_signal_quality() {
 
 # Function to get network registration status
 get_network_status() {
-    local response=$(send_at_command "AT+CREG?")
-    local status=$(echo "$response" | grep "+CREG:" | cut -d',' -f2 | tr -d ' ')
+    local response=$(send_at_command "AT+C5GREG?")
+    local status=$(echo "$response" | grep "+C5GREG:" | cut -d',' -f2 | tr -d ' ')
     echo "$status"
 }
 
@@ -118,7 +142,7 @@ set_nr5g_mode() {
 # Function to check current network mode
 get_network_mode() {
     local response=$(send_at_command "AT+QNWPREFCFG=\"mode_pref\"")
-    local mode=$(echo "$response" | grep "mode_pref" | cut -d',' -f2 | tr -d ' ')
+    local mode=$(echo "$response" | grep "+QNWPREFCFG: \"mode_pref\"" | cut -d',' -f2 | tr -d ' ')
     echo "$mode"
 }
 
@@ -171,32 +195,22 @@ reset_modem_connection() {
     set_nr5g_mode
     sleep 2
 
+    # Reset Modem
+    send_at_command "AT+CFUN=1,1" > /dev/null
+    sleep 45
 
-    # Deactivate PDP context
-    send_at_command "AT+CGACT=0,1" > /dev/null
-    sleep 2
-    
-    # Reset network registration
-    send_at_command "AT+COPS=2" > /dev/null
-    sleep 5
-    
+
     # Ensure 5G mode is still set after network reset
     set_network_mode
     sleep 2
     set_nr5g_mode
     sleep 2
     
-    # Re-register to network with automatic operator selection
-    send_at_command "AT+COPS=0" > /dev/null
-    sleep 15  # Give more time for 5G registration
     
     # Verify network technology after registration
     local tech=$(get_network_technology)
     log_message "Connected to network technology: $tech"
     
-    # Reactivate PDP context
-    send_at_command "AT+CGACT=1,1" > /dev/null
-    sleep 5
 }
 
 # Function to perform full reconnection sequence
@@ -259,10 +273,10 @@ check_cell_lock() {
 # Function to display status
 display_status() {
     local signal_quality=$(get_signal_quality)
-    local network_status=$(get_network_status)
+    local network_status=$(get_network_status | tr -d '\r\n')
     local current_arfcn=$(get_pcc_arfcn)
     local network_tech=$(get_network_technology)
-    local network_mode=$(get_network_mode)
+    local network_mode=$(get_network_mode | tr -d '\r\n')
     local connectivity_status="FAIL"
     
     if test_connectivity; then
@@ -270,6 +284,9 @@ display_status() {
     fi
     
     log_message "Status - Signal:$signal_quality, Network:$network_status, ARFCN:$current_arfcn, Tech:$network_tech, Mode:$network_mode, Connectivity:$connectivity_status, Failures:$connectivity_failures"
+#    log_message "Status - Signal:$signal_quality, Network:$network_status, ARFCN:$current_arfcn"
+#    log_message "Status - Tech:$network_tech, Mode:$network_mode, Connectivity:$connectivity_status"
+#    log_message "Failures - Failures:$connectivity_failures"
 }
 
 # Trap function for graceful shutdown
@@ -282,19 +299,19 @@ cleanup() {
 trap cleanup INT TERM
 
 # Do some debugging on values from the status variables
+if [ "$DEBUG" = "1" ]; then
+    echo "Signal Quality: $(get_signal_quality)"
+    echo "Network Status: $(get_network_status)"
+    echo "  Current AFRN: $(get_pcc_arfcn)"
+    echo " Expected AFRN: $FIVEG_ARFCN"
+    echo "  Network Tech: $(get_network_technology)"
+    echo "  Network Mode: $(get_network_mode)"
 
-echo "Signal Quality: $(get_signal_quality)"
-echo "Network Status: $(get_network_status)"
-echo "  Current AFRN: $(get_pcc_arfcn)"
-echo " Expected AFRN: $FIVEG_ARFCN"
-echo "  Network Tech: $(get_network_technology)"
-echo "  Network Mode: $(get_network_mode)"
+    # Pause before entering monitor
+    echo "Press Enter to continue..."
+    read
+fi
 
-
-# Pause before entering monitor
-
-echo "Press Enter to continue..."
-read
 
 ##########################################
 # Main script starts here                #
@@ -329,6 +346,9 @@ log_message "Starting monitoring loop..."
 
 # Main monitoring loop
 while true; do
+
+    # Rotate the log file
+    rotate_log
     
     # Display current status
     display_status
