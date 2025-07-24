@@ -44,4 +44,12 @@ stop_service() {
     killall your-script-name 2>/dev/null
 }
 
+
+# Made your script executable
+chmod +x /etc/init.d/your-script-name
+/etc/init.d/your-script-name enable
+
+
+
+
 ```
