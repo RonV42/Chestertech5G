@@ -20,3 +20,28 @@ vi /etc/rc.local
 
 exit 0
 ```
+
+
+```
+# Create init script
+vi /etc/init.d/your-script-name
+
+#!/bin/sh /etc/rc.common
+
+START=99
+STOP=10
+
+USE_PROCD=1
+
+start_service() {
+    procd_open_instance
+    procd_set_param command /path/to/your/script.sh
+    procd_set_param respawn
+    procd_close_instance
+}
+
+stop_service() {
+    killall your-script-name 2>/dev/null
+}
+
+```
