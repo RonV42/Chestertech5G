@@ -56,7 +56,9 @@ rotate_log() {
     local max_size=1048576  # 1MB in bytes
     local max_files=5
     
-    if [ -f "$LOG_FILE" ] && [ $(stat -c%s "$LOG_FILE" 2>/dev/null || echo 0) -gt $max_size ]; then
+    #if [ -f "$LOG_FILE" ] && [ $(stat -c%s "$LOG_FILE" 2>/dev/null || echo 0) -gt $max_size ]; then
+    if [ -f "$LOG_FILE" ] && [ $(ls -l "$LOG_FILE" 2>/dev/null | awk '{print $5}' || echo 0) -gt $max_size ]; then
+
         # Rotate existing logs
         for i in $(seq $((max_files-1)) -1 1); do
             if [ -f "${LOG_FILE}.$i" ]; then
