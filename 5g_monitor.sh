@@ -34,6 +34,11 @@ FIVEG_PCI="622"
 FIVEG_SCS="15"
 FIVEG_BAND="71"
 
+#FIVEG_ARFCN="520110"
+#FIVEG_PCI="797"
+#FIVEG_SCS="30"
+#FIVEG_BAND="41"
+
 
 # Build Cell Lock Command
 FIVEG_CELL_LOCK_COMMAND=$(echo -ne "AT+QNWLOCK=\"common/5g\",$FIVEG_PCI,$FIVEG_ARFCN,$FIVEG_SCS,$FIVEG_BAND\r")
@@ -56,9 +61,8 @@ rotate_log() {
     local max_size=1048576  # 1MB in bytes
     local max_files=5
     
-    #if [ -f "$LOG_FILE" ] && [ $(stat -c%s "$LOG_FILE" 2>/dev/null || echo 0) -gt $max_size ]; then
+#    if [ -f "$LOG_FILE" ] && [ $(stat -c%s "$LOG_FILE" 2>/dev/null || echo 0) -gt $max_size ]; then
     if [ -f "$LOG_FILE" ] && [ $(ls -l "$LOG_FILE" 2>/dev/null | awk '{print $5}' || echo 0) -gt $max_size ]; then
-
         # Rotate existing logs
         for i in $(seq $((max_files-1)) -1 1); do
             if [ -f "${LOG_FILE}.$i" ]; then
@@ -159,7 +163,7 @@ get_network_technology() {
 
 # Function to test connectivity
 test_connectivity() {
-    if ping -c 1 -W "$PING_TIMEOUT" "$PING_HOST" > /dev/null 2>&1; then
+    if ping -4 -c 1 -W "$PING_TIMEOUT" "$PING_HOST" > /dev/null 2>&1; then
         return 0
     else
         return 1
