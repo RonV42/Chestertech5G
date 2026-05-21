@@ -19,7 +19,7 @@ DEBUG=0
 #NETWORK_MODE="12"  # Force 5G SA only - change to 11 for 5G + LTE fallback
 
 # Network Mode Pref for Quectel
-# AUTO = autonmatic, LTE = LTE Only, NR5G = 5G Only, 
+# AUTO = autonmatic, LTE = LTE Only, NR5G = 5G Only,
 # LTE:NR5G = LTE and 5G, GSM = 2G only, WCDMA = 3G only
 # GSM:WCDMA:LTE:NR5G = all modes
 NETWORK_MODE="NR5G"  # Force 5G
@@ -29,13 +29,20 @@ NETWORK_MODE="NR5G"  # Force 5G
 NR5G_MODE="2"
 
 # 5G Lock Parameters - **Customize These Values**
+
+# Primary Anchor
 FIVEG_ARFCN="126270"
 FIVEG_PCI="622"
 FIVEG_SCS="15"
 FIVEG_BAND="71"
 
+#FIVEG_ARFCN="123870"
+#FIVEG_PCI="622"
+#FIVEG_SCS="15"
+#FIVEG_BAND="71"
+
 #FIVEG_ARFCN="520110"
-#FIVEG_PCI="797"
+#FIVEG_PCI="605"
 #FIVEG_SCS="30"
 #FIVEG_BAND="41"
 
@@ -60,7 +67,7 @@ log_message() {
 rotate_log() {
     local max_size=1048576  # 1MB in bytes
     local max_files=5
-    
+
 #    if [ -f "$LOG_FILE" ] && [ $(stat -c%s "$LOG_FILE" 2>/dev/null || echo 0) -gt $max_size ]; then
     if [ -f "$LOG_FILE" ] && [ $(ls -l "$LOG_FILE" 2>/dev/null | awk '{print $5}' || echo 0) -gt $max_size ]; then
         # Rotate existing logs
@@ -69,10 +76,10 @@ rotate_log() {
                 mv "${LOG_FILE}.$i" "${LOG_FILE}.$((i+1))"
             fi
         done
-        
+
         # Move current log to .1
         mv "$LOG_FILE" "${LOG_FILE}.1"
-        
+
         # Create new log file
         touch "$LOG_FILE"
         echo "$(date): Log rotated" >> "$LOG_FILE"
@@ -124,7 +131,7 @@ check_data_connection() {
 # Function to set network mode to 5G
 set_network_mode() {
     local response=$(send_at_command "AT+QNWPREFCFG=\"mode_pref\",$NETWORK_MODE")
-    
+
     if echo "$response" | grep -q "OK"; then
         return 0
     else
@@ -174,7 +181,7 @@ test_connectivity() {
 set_cell_lock() {
     log_message "Setting 5G Cell Lock Parameters (PCI:$FIVEG_PCI, ARFCN:$FIVEG_ARFCN, Band:$FIVEG_BAND)..."
     local response=$(send_at_command "$FIVEG_CELL_LOCK_COMMAND")
-    
+
     if echo "$response" | grep -q "OK"; then
         log_message "Cell lock command sent successfully"
         return 0
@@ -194,7 +201,7 @@ get_pcc_arfcn() {
 # Function to reset modem connection
 reset_modem_connection() {
     log_message "Resetting modem connection..."
-    
+
     # Set network mode to 5G before reconnection
     set_network_mode
     sleep 2
@@ -211,21 +218,21 @@ reset_modem_connection() {
     sleep 2
     set_nr5g_mode
     sleep 2
-    
-    
+
+
     # Verify network technology after registration
     local tech=$(get_network_technology)
     log_message "Connected to network technology: $tech"
-    
+
 }
 
 # Function to perform full reconnection sequence
 perform_reconnection() {
     local attempt=1
-    
+
     while [ $attempt -le $MAX_RECONNECT_ATTEMPTS ]; do
         log_message "Reconnection attempt $attempt of $MAX_RECONNECT_ATTEMPTS"
-        
+
         # Check if modem is responsive
         if ! check_modem_responsive; then
             log_message "Modem not responsive, skipping this attempt"
@@ -233,27 +240,27 @@ perform_reconnection() {
             attempt=$((attempt + 1))
             continue
         fi
-        
+
         # Reset connection
         reset_modem_connection
-        
+
         # Reapply cell lock
         set_cell_lock
-        
+
         # Wait for network registration
         sleep 30
-        
+
         # Test connectivity
         if test_connectivity; then
             log_message "Reconnection successful on attempt $attempt"
             connectivity_failures=0
             return 0
         fi
-        
+
         attempt=$((attempt + 1))
         sleep 30
     done
-    
+
     log_message "All reconnection attempts failed"
     return 1
 }
@@ -261,13 +268,13 @@ perform_reconnection() {
 # Function to check cell lock status
 check_cell_lock() {
     local current_arfcn=$(get_pcc_arfcn)
-    
+
     if [ -z "$current_arfcn" ]; then
         log_message "Unable to get current PCC ARFCN"
         return 1
     fi
-    
-    
+
+
     if [ "$FIVEG_ARFCN" = "$current_arfcn" ]; then
         return 0
     else
@@ -284,11 +291,11 @@ display_status() {
     local network_tech=$(get_network_technology)
     local network_mode=$(get_network_mode | tr -d '\r\n')
     local connectivity_status="FAIL"
-    
+
     if test_connectivity; then
         connectivity_status="OK"
     fi
-    
+
     log_message "Status - Signal:$signal_quality, Network:$network_status, ARFCN:$current_arfcn, Tech:$network_tech, Mode:$network_mode, Connectivity:$connectivity_status, Failures:$connectivity_failures"
 #    log_message "Status - Signal:$signal_quality, Network:$network_status, ARFCN:$current_arfcn"
 #    log_message "Status - Tech:$network_tech, Mode:$network_mode, Connectivity:$connectivity_status"
@@ -355,17 +362,17 @@ while true; do
 
     # Rotate the log file
     rotate_log
-    
+
     # Display current status
     display_status
-    
+
     # Check modem responsiveness
     if ! check_modem_responsive; then
         log_message "WARNING: Modem not responsive"
         sleep "$CHECK_INTERVAL"
         continue
     fi
-    
+
     # Check cell lock status
     if ! check_cell_lock; then
         log_message "Cell lock lost, reapplying..."
@@ -373,7 +380,7 @@ while true; do
         set_cell_lock
         sleep 30
     fi
-    
+
     # Check if we're still on 5G
     current_tech=$(get_network_technology)
     if [ "$current_tech" != "5G" ] && [ "$current_tech" != "NR5G" ] && [ "$current_tech" != "FDD NR5G" ]; then
@@ -383,12 +390,12 @@ while true; do
         set_nr5g_mode
         sleep 10
     fi
-    
+
     # Check connectivity
     if ! test_connectivity; then
         connectivity_failures=$((connectivity_failures + 1))
         log_message "Connectivity test failed (failure $connectivity_failures of $CONNECTIVITY_FAILURES_THRESHOLD)"
-        
+
         if [ $connectivity_failures -ge $CONNECTIVITY_FAILURES_THRESHOLD ]; then
             log_message "Connectivity failure threshold reached, initiating reconnection..."
             perform_reconnection
@@ -399,6 +406,6 @@ while true; do
             connectivity_failures=0
         fi
     fi
-    
+
     sleep "$CHECK_INTERVAL"
 done
