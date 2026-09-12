@@ -4,6 +4,8 @@
 # Monitors cell lock status and network connectivity, reconnects when needed
 # Usage: ./5g_monitor.sh
 
+# 9/12/2026 - Fixed the SCS value for the n41 tower lock it was 15 should be 30
+
 # Configuration
 SERIAL_DEVICE="/dev/ttyUSB3"
 LOG_FILE="/var/log/5g_monitor.log"
@@ -30,21 +32,29 @@ NR5G_MODE="2"
 
 # 5G Lock Parameters - **Customize These Values**
 
-# Primary Anchor
-FIVEG_ARFCN="126270"
-FIVEG_PCI="622"
-FIVEG_SCS="15"
-FIVEG_BAND="71"
+# Primary Anchor n71 (Preferred for upload)
+#FIVEG_ARFCN="126270"
+#FIVEG_PCI="622"
+#FIVEG_SCS="15"
+#FIVEG_BAND="71"
+
+# Primary Anchor n41 (Good download, average upload)
+FIVEG_ARFCN="520110"
+FIVEG_PCI="605"
+FIVEG_SCS="30"
+FIVEG_BAND="41"
+
+
+# Profile 3: Alternate n41 (the second one)
+#FIVEG_ARFCN="502110"
+#FIVEG_PCI="605"
+#FIVEG_SCS="30"
+#FIVEG_BAND="41"
 
 #FIVEG_ARFCN="123870"
 #FIVEG_PCI="622"
 #FIVEG_SCS="15"
 #FIVEG_BAND="71"
-
-#FIVEG_ARFCN="520110"
-#FIVEG_PCI="605"
-#FIVEG_SCS="30"
-#FIVEG_BAND="41"
 
 
 # Build Cell Lock Command
